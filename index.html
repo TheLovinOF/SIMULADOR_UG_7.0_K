@@ -675,11 +675,17 @@
                 }
             }
             // 2.5 operaciones (suma/resta)
-            for (const ax of [-2, 1, 3], ay of[-1, 2, 4], bx of[1, 2, -3], by of[0, 3, -2]) {
-                const sx = ax + bx, sy = ay + by;
-                const correct = `(${sx},${sy})`;
-                const opts = unique4(correct, [`(${sx + 1},${sy})`, `(${sx},${sy + 1})`, `(${sx - 1},${sy - 1})`]);
-                out.push(q("Matemáticas", "2.5", "Operaciones entre vectores", `Si a=(${ax},${ay}) y b=(${bx},${by}), a+b =`, opts, opts.indexOf(correct)));
+            for (const ax of [-2, 1, 3]) {
+                for (const ay of [-1, 2, 4]) {
+                    for (const bx of [1, 2, -3]) {
+                        for (const by of [0, 3, -2]) {
+                            const sx = ax + bx, sy = ay + by;
+                            const correct = `(${sx},${sy})`;
+                            const opts = unique4(correct, [`(${sx + 1},${sy})`, `(${sx},${sy + 1})`, `(${sx - 1},${sy - 1})`]);
+                            out.push(q("Matemáticas", "2.5", "Operaciones entre vectores", `Si a=(${ax},${ay}) y b=(${bx},${by}), a+b =`, opts, opts.indexOf(correct)));
+                        }
+                    }
+                }
             }
             // 2.6 producto escalar/vectorial
             out.push(q("Matemáticas", "2.6", "Producto escalar", "El producto escalar a·b se usa para:", [
@@ -1388,6 +1394,7 @@
         let BANK = [];
         let EXAM = [];
         let answers = new Array(EXAM_SIZE).fill(null);
+        let usedQuestionsIndices = new Set(); // Track used questions across attempts
 
         /* =========================
            UI refs
@@ -1543,7 +1550,24 @@
                 BANK = buildFullBank();
             }
 
-            EXAM = pickN(BANK, EXAM_SIZE);
+            // Available questions filtering
+            let availableIndices = [];
+            for (let i = 0; i < BANK.length; i++) {
+                if (!usedQuestionsIndices.has(i)) availableIndices.push(i);
+            }
+
+            // Reset history if we don't have enough questions left for an exam
+            if (availableIndices.length < EXAM_SIZE) {
+                usedQuestionsIndices.clear();
+                availableIndices = [];
+                for (let i = 0; i < BANK.length; i++) availableIndices.push(i);
+            }
+
+            shuffle(availableIndices);
+            const chosenIndices = availableIndices.slice(0, EXAM_SIZE);
+            chosenIndices.forEach(val => usedQuestionsIndices.add(val));
+            EXAM = chosenIndices.map(i => BANK[i]);
+
             answers = new Array(EXAM_SIZE).fill(null);
 
             started = false;
@@ -1557,7 +1581,7 @@
             startBtn.disabled = false;
             finishBtn.disabled = true;
 
-            hintEl.textContent = "Presiona “Iniciar”. Reiniciar crea un examen nuevo con 40 aleatorias de TODO el banco.";
+            hintEl.textContent = `Presiona “Iniciar”. (Preguntas usadas: ${usedQuestionsIndices.size}/${BANK.length})`;
             qArea.classList.add("hide");
 
             quizCard.classList.remove("hide");
@@ -1567,9 +1591,9 @@
             const by = { Matemáticas: 0, Lenguaje: 0, Física: 0 };
             for (const it of BANK) if (by[it.topic] !== undefined) by[it.topic]++;
             bankInfo.textContent =
-                `Banco total cargado: ${BANK.length} preguntas.\n` +
+                `Banco total cargado: ${BANK.length} preguntas (Usadas: ${usedQuestionsIndices.size}).\n` +
                 `Matemáticas: ${by.Matemáticas} • Lenguaje: ${by.Lenguaje} • Física: ${by.Física}\n` +
-                `Cada reinicio toma 40 aleatorias de TODO el banco.`;
+                `No se repetirán hasta agotar el banco de preguntas.`;
         }
 
         calcBtn.addEventListener("click", () => {
